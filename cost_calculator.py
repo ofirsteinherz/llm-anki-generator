@@ -11,6 +11,9 @@ class CostCalculator:
         :param pricing_url: URL to fetch the pricing information.
         """
         self.token_counter = TokenCounter()
+        
+        # Fixed cost per image model used (gpt-4o)
+        self.IMAGE_COST_PER_MODEL = 0.0021  
 
         # URL to the updated model pricing and context window data
         pricing_url = "https://raw.githubusercontent.com/BerriAI/litellm/refs/heads/main/model_prices_and_context_window.json"
@@ -65,22 +68,28 @@ class CostCalculator:
             else:
                 raise ValueError(f"No pricing found for model '{model_name}'.")
 
-    def calculate_prompt_cost(self, text_prompt: str) -> float:
+    def calculate_prompt_cost(self, text_prompt: str, has_image: bool = False) -> float:
         """
-        Calculate the cost for the given text prompt based on the model's pricing.
-
-        :param text_prompt: The text prompt to be tokenized and cost calculated.
-        :return: The calculated cost for the prompt.
+        Calculate the cost for the given text prompt and optionally add the cost of using an image model.
+        
+        :param text_prompt: The text prompt to be tokenized and have its cost calculated.
+        :param has_image: A boolean indicating if an image model is used (True if used, False otherwise).
+        :return: The total calculated cost for the text prompt including image cost if applicable.
         """
-        # Get the number of tokens in the prompt using the resolved encoding model
+        # Get the number of tokens in the text prompt using the resolved encoding model
         num_tokens = self.token_counter.num_tokens_from_string(text_prompt, self.encoding_model_name)
         
-        # Get the cost per token for the prompt (input)
+        # Get the cost per token for the text input
         input_cost_per_token = self.pricing_data[self.pricing_model_name]['input_cost_per_token']
 
-        # Calculate total cost based on the number of tokens
-        prompt_cost = num_tokens * input_cost_per_token
-        return prompt_cost
+        # Calculate the total cost for the text prompt
+        text_prompt_cost = num_tokens * input_cost_per_token
+
+        # Add image cost if an image model is used
+        image_cost = self.IMAGE_COST_PER_MODEL if has_image else 0.0
+
+        # Return the total cost (text prompt cost + image cost if applicable)
+        return text_prompt_cost + image_cost
 
     def calculate_completion_cost(self, text_completion: str) -> float:
         """
